@@ -132,34 +132,36 @@ impl<'a> Parser<'a> {
                 Err(token) => break token,
             }
         };
-        match token {
-            Token::Lit(num) => Ok(sgn * num),
+
+        let val = match token {
+            Token::Lit(num) => num,
             Token::Ident(ident) => {
                 if self.lexer.peek() == Token::Lparen {
                     self.lexer.next()?;
                     let x = self.parse_expr(ctx)?;
                     if !self.lexer.eat(Token::Rparen)? {
                         let cur = self.lexer.peek();
-                        bail!("expected ), found {}", cur)
+                        bail!("expected `)`, found {}", cur)
                     }
-                    Self::call_buildin(ident, x)
+                    Self::call_buildin(ident, x)?
                 } else {
                     match ctx.get(ident) {
-                        Some(&num) => Ok(sgn * num),
+                        Some(&num) => num,
                         None => bail!("unknown variable {}", ident),
                     }
                 }
             }
             Token::Lparen => {
-                let expr = self.parse_expr(ctx)?;
+                let val = self.parse_expr(ctx)?;
                 if !self.lexer.eat(Token::Rparen)? {
                     let cur = self.lexer.peek();
                     bail!("expected ), found {}", cur)
                 }
-                Ok(sgn * expr)
+                val
             }
             token => bail!("unexpected token {}, expected `(`, ident or num", token),
-        }
+        };
+        Ok(val * sgn)
     }
 
     fn call_buildin(func: &str, x: f64) -> anyhow::Result<f64> {
